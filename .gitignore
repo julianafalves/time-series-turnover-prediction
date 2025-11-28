@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.DS_Store
+.env
+data/*.joblib
+models/*.joblib
+reports/*.png
+reports/*.json
+.venv/
+data/synthetic_turnover.csv
+data/synthetic_turnover_ts.csv
+.venv/

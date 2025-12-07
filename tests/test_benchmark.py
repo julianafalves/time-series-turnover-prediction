@@ -15,7 +15,7 @@ def test_benchmark(tmp_path: Path):
 
     # Run benchmark
     out_dir = tmp_path / 'benchmark_reports'
-    cmd = [sys.executable, 'src/benchmark.py', '--input', str(out_csv), '--out-dir', str(out_dir), '--n-lags', '6']
+    cmd = [sys.executable, '-m', 'turnover_prediction.benchmark', '--input', str(out_csv), '--out-dir', str(out_dir), '--n-lags', '6']
     subprocess.run(cmd, check=True)
 
     assert (out_dir / 'predictions.csv').exists()

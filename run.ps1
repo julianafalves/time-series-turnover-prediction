@@ -16,6 +16,9 @@ if (-not (Test-Path $venvPython)) {
 	Write-Host "Using existing virtual environment at $venvDir"
 }
 
+# Install project in editable mode
+& $venvPython -m pip install -e .
+
 # Ensure output directories exist
 New-Item -ItemType Directory -Force -Path "models","reports","data" | Out-Null
 
@@ -36,14 +39,14 @@ if (Test-Path $userCsv) {
 	exit 1
 }
 if ($pipelineMode -eq 'ts') {
-    & $venvPython "src/preprocessing.py" --input $csvFile --out-dir "data" --mode ts --n-lags 12 --date-col date
-	& $venvPython "src/train.py" --prepared "data/prepared.joblib" --model-output "models/xgb_turnover.joblib" --task ts --n-estimators 100
-	& $venvPython "src/evaluate.py" --prepared "data/prepared.joblib" --model "models/xgb_turnover.joblib" --report-dir "reports" --task ts
-	& $venvPython "src/explain.py" --model "models/xgb_turnover.joblib" --prepared "data/prepared.joblib" --out-dir "reports" --task ts
-	& $venvPython "src/benchmark.py" --input $csvFile --out-dir "reports/benchmark" --n-lags 12
+    & $venvPython -m turnover_prediction.preprocessing --input $csvFile --out-dir "data" --mode ts --n-lags 12 --date-col date
+	& $venvPython -m turnover_prediction.train --prepared "data/prepared.joblib" --model-output "models/xgb_turnover.joblib" --task ts --n-estimators 100
+	& $venvPython -m turnover_prediction.evaluate --prepared "data/prepared.joblib" --model "models/xgb_turnover.joblib" --report-dir "reports" --task ts
+	& $venvPython -m turnover_prediction.explain --model "models/xgb_turnover.joblib" --prepared "data/prepared.joblib" --out-dir "reports" --task ts
+	& $venvPython -m turnover_prediction.benchmark --input $csvFile --out-dir "reports/benchmark" --n-lags 12
 } else {
-	& $venvPython "src/preprocessing.py" --input $csvFile --out-dir "data" --mode tabular
-	& $venvPython "src/train.py" --prepared "data/prepared.joblib" --model-output "models/rf_turnover.joblib" --task classification --n-estimators 100
-	& $venvPython "src/evaluate.py" --prepared "data/prepared.joblib" --model "models/rf_turnover.joblib" --report-dir "reports" --task classification
-	& $venvPython "src/explain.py" --model "models/rf_turnover.joblib" --prepared "data/prepared.joblib" --out-dir "reports" --task classification
+	& $venvPython -m turnover_prediction.preprocessing --input $csvFile --out-dir "data" --mode tabular
+	& $venvPython -m turnover_prediction.train --prepared "data/prepared.joblib" --model-output "models/rf_turnover.joblib" --task classification --n-estimators 100
+	& $venvPython -m turnover_prediction.evaluate --prepared "data/prepared.joblib" --model "models/rf_turnover.joblib" --report-dir "reports" --task classification
+	& $venvPython -m turnover_prediction.explain --model "models/rf_turnover.joblib" --prepared "data/prepared.joblib" --out-dir "reports" --task classification
 }

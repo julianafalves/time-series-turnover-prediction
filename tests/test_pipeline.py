@@ -16,20 +16,20 @@ def test_end_to_end(tmp_path):
 
     # run preprocessing
     prepared = tmp_path / 'prepared.joblib'
-    cmd = [sys.executable, 'src/preprocessing.py', '--input', str(input_csv), '--out-dir', str(tmp_path), '--mode', 'ts']
+    cmd = [sys.executable, '-m', 'turnover_prediction.preprocessing', '--input', str(input_csv), '--out-dir', str(tmp_path), '--mode', 'ts']
     subprocess.run(cmd, check=True)
     assert prepared.exists()
 
     # train
     model = tmp_path / 'rf.joblib'
-    cmd = [sys.executable, 'src/train.py', '--prepared', str(prepared), '--model-output', str(model), '--task', 'ts']
+    cmd = [sys.executable, '-m', 'turnover_prediction.train', '--prepared', str(prepared), '--model-output', str(model), '--task', 'ts']
     subprocess.run(cmd, check=True)
     assert model.exists()
 
     # explain
     reports_dir = tmp_path / 'reports'
     reports_dir.mkdir(exist_ok=True)
-    cmd = [sys.executable, 'src/explain.py', '--model', str(model), '--prepared', str(prepared), '--out-dir', str(reports_dir), '--task','ts']
+    cmd = [sys.executable, '-m', 'turnover_prediction.explain', '--model', str(model), '--prepared', str(prepared), '--out-dir', str(reports_dir), '--task','ts']
     subprocess.run(cmd, check=True)
 
     # Check at least one SHAP plot exists
@@ -48,19 +48,19 @@ def test_time_series_pipeline(tmp_path):
 
     # preprocess ts into a temporary out dir
     prepared = tmp_path / 'prepared_ts.joblib'
-    cmd = [sys.executable, 'src/preprocessing.py', '--input', str(input_csv), '--out-dir', str(tmp_path), '--mode', 'ts', '--n-lags', '6']
+    cmd = [sys.executable, '-m', 'turnover_prediction.preprocessing', '--input', str(input_csv), '--out-dir', str(tmp_path), '--mode', 'ts', '--n-lags', '6']
     subprocess.run(cmd, check=True)
     assert prepared.exists()
 
     # train ts
     model = tmp_path / 'xgb.joblib'
-    cmd = [sys.executable, 'src/train.py', '--prepared', str(prepared), '--model-output', str(model), '--task', 'ts', '--n-estimators', '50']
+    cmd = [sys.executable, '-m', 'turnover_prediction.train', '--prepared', str(prepared), '--model-output', str(model), '--task', 'ts', '--n-estimators', '50']
     subprocess.run(cmd, check=True)
     assert model.exists()
 
     # explain ts
     reports_dir = tmp_path / 'reports_ts'
     reports_dir.mkdir(exist_ok=True)
-    cmd = [sys.executable, 'src/explain.py', '--model', str(model), '--prepared', str(prepared), '--out-dir', str(reports_dir), '--task', 'ts']
+    cmd = [sys.executable, '-m', 'turnover_prediction.explain', '--model', str(model), '--prepared', str(prepared), '--out-dir', str(reports_dir), '--task', 'ts']
     subprocess.run(cmd, check=True)
     assert (reports_dir / 'shap_summary.png').exists()

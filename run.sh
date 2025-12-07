@@ -47,13 +47,19 @@ echo "--- 5. Running Benchmark (RF vs XGB vs LSTM) ---"
     --out-dir "reports/benchmark" \
     --n-lags 12
 
-echo "--- 6. Training Final Model (XGBoost) for Residual Analysis ---"
-# Trains the winning model (usually XGB) and saves the artifact for deep evaluation
+echo "--- 5.5. Running Hyperparameter Tuning (Time Series CV) ---"
+# Optimizes the model and saves the best parameters
+"$VENV_PYTHON" -m turnover_prediction.tuning \
+    --input "$CSV_FILE" \
+    --out-dir "reports"
+
+echo "--- 6. Training Final Model with Tuned Hyperparameters ---"
+# Train the final model using the best hyperparameters from tuning
 "$VENV_PYTHON" -m turnover_prediction.train \
     --prepared "data/prepared.joblib" \
     --model-output "models/xgb_turnover.joblib" \
     --task ts \
-    --n-estimators 100
+    --params "reports/best_params.json"
 
 echo "--- 7. Running Advanced Evaluation (Diebold-Mariano Test) ---"
 # Generates ACF plots of residuals and performs statistical significance tests

@@ -40,10 +40,17 @@ if (Test-Path $userCsv) {
 }
 if ($pipelineMode -eq 'ts') {
     & $venvPython -m turnover_prediction.preprocessing --input $csvFile --out-dir "data" --mode ts --n-lags 12 --date-col date
-	& $venvPython -m turnover_prediction.train --prepared "data/prepared.joblib" --model-output "models/xgb_turnover.joblib" --task ts --n-estimators 100
-	& $venvPython -m turnover_prediction.evaluate --prepared "data/prepared.joblib" --model "models/xgb_turnover.joblib" --report-dir "reports" --task ts
-	& $venvPython -m turnover_prediction.explain --model "models/xgb_turnover.joblib" --prepared "data/prepared.joblib" --out-dir "reports" --task ts
-	& $venvPython -m turnover_prediction.benchmark --input $csvFile --out-dir "reports/benchmark" --n-lags 12
+    Write-Host "--- Running Hyperparameter Tuning (Time Series CV) ---"
+    & $venvPython -m turnover_prediction.tuning --input $csvFile --out-dir "reports"
+    Write-Host "--- Training Final Model with Tuned Hyperparameters ---"
+    & $venvPython -m turnover_prediction.train `
+        --prepared "data/prepared.joblib" `
+        --model-output "models/xgb_turnover.joblib" `
+        --task ts `
+        --params "reports/best_params.json"
+ & $venvPython -m turnover_prediction.evaluate --prepared "data/prepared.joblib" --model "models/xgb_turnover.joblib" --report-dir "reports" --task ts
+ & $venvPython -m turnover_prediction.explain --model "models/xgb_turnover.joblib" --prepared "data/prepared.joblib" --out-dir "reports" --task ts
+ & $venvPython -m turnover_prediction.benchmark --input $csvFile --out-dir "reports/benchmark" --n-lags 12
 } else {
 	& $venvPython -m turnover_prediction.preprocessing --input $csvFile --out-dir "data" --mode tabular
 	& $venvPython -m turnover_prediction.train --prepared "data/prepared.joblib" --model-output "models/rf_turnover.joblib" --task classification --n-estimators 100

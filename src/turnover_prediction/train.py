@@ -11,7 +11,26 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import xgboost as xgb
 
 
-def train_model(prepared_path, model_output, task='classification', n_estimators=100, random_state=42):
+def train_model(prepared_path, model_output, task='classification', n_estimators=100, random_state=42, params=None):
+    """
+    Train a model (RandomForest for classification, XGBoost for time series regression).
+
+    Parameters
+    ----------
+    prepared_path : str
+        Path to the prepared.joblib file containing train/test splits.
+    model_output : str
+        Path where the trained model will be saved.
+    task : str, default='classification'
+        Either 'classification' or 'ts' (time series regression).
+    n_estimators : int, default=100
+        Number of trees (used only if params is not provided).
+    random_state : int, default=42
+        Random seed for reproducibility.
+    params : dict, optional
+        Dictionary of hyperparameters to pass to the model constructor.
+        If provided, n_estimators is ignored (except for RandomForest where it's used if not in params).
+    """
     data = joblib.load(prepared_path)
     X_train = data['X_train']
     y_train = data['y_train']
@@ -19,7 +38,12 @@ def train_model(prepared_path, model_output, task='classification', n_estimators
     y_test = data['y_test']
 
     if task == 'classification':
-        clf = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
+        # RandomForestClassifier
+        if params is None:
+            params = {}
+        # Ensure n_estimators is taken from params if present, else from argument
+        n_est = params.get('n_estimators', n_estimators)
+        clf = RandomForestClassifier(n_estimators=n_est, random_state=random_state, **params)
         clf.fit(X_train, y_train.astype(int))
 
         preds = clf.predict(X_test)
@@ -34,7 +58,15 @@ def train_model(prepared_path, model_output, task='classification', n_estimators
         }
     else:
         # time series regression using XGBoost
-        reg = xgb.XGBRegressor(n_estimators=n_estimators, random_state=random_state, objective='reg:squarederror')
+        if params is None:
+            params = {}
+        # If params does not contain n_estimators, use the argument
+        if 'n_estimators' not in params:
+            params['n_estimators'] = n_estimators
+        # Ensure random_state and objective are set
+        params['random_state'] = random_state
+        params['objective'] = 'reg:squarederror'
+        reg = xgb.XGBRegressor(**params)
         reg.fit(X_train, y_train.astype(float))
         preds = reg.predict(X_test)
 
@@ -61,6 +93,16 @@ if __name__ == '__main__':
     parser.add_argument('--model-output', type=str, default='models/rf_turnover.joblib')
     parser.add_argument('--task', type=str, default='classification', choices=['classification', 'ts'])
     parser.add_argument('--n-estimators', type=int, default=100)
+    parser.add_argument('--params', type=str, default=None,
+                        help='Path to JSON file containing hyperparameters (optional).')
     args = parser.parse_args()
 
-    train_model(args.prepared, args.model_output, task=args.task, n_estimators=args.n_estimators)
+    # Load parameters from JSON file if provided
+    params = None
+    if args.params:
+        with open(args.params, 'r') as f:
+            params = json.load(f)
+        print(f'Loaded hyperparameters from {args.params}: {params}')
+
+    train_model(args.prepared, args.model_output, task=args.task,
+                n_estimators=args.n_estimators, params=params)

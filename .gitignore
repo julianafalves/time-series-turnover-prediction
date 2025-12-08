@@ -2,11 +2,39 @@ __pycache__/
 *.pyc
 .DS_Store
 .env
-data/*.joblib
-models/*.joblib
-reports/*.png
-reports/*.json
+## Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Environments and secrets
+.env
 .venv/
-data/synthetic_turnover.csv
-data/synthetic_turnover_ts.csv
+
+# Build / packaging
 *.egg-info/
+
+# Do NOT commit data, models, or reports
+# Exclude full directories to be safe for large/binary files and sensitive data
+data/
+models/
+reports/
+
+# Common generated artifacts
+*.joblib
+*.pkl
+*.parquet
+*.feather
+*.csv
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# OS-specific and misc
+Thumbs.db
+

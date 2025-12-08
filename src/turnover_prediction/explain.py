@@ -4,70 +4,81 @@ Produce SHAP explanations for the trained model.
 import argparse
 import joblib
 import numpy as np
-# Workaround for shap compatibility with numpy >= 1.24 (shap may reference deprecated np.int)
+
+# Workaround for shap compatibility with numpy >= 1.24
 if not hasattr(np, 'int'):
     setattr(np, 'int', int)
+
 import shap
 import matplotlib.pyplot as plt
-import pickle
 import pandas as pd
-import numpy as np
 
 
-def explain(model_path, prepared_path, out_dir='reports', task='classification'):
+def explain(model_path: str, prepared_path: str, out_dir: str = 'reports'):
+    """
+    Generate SHAP explanations for a trained model.
+    
+    Creates summary plot showing feature importance and force plot for first test sample.
+    Handles both classification and regression tasks automatically.
+
+    Parameters
+    ----------
+    model_path : str
+        Path to trained model (.joblib)
+    prepared_path : str
+        Path to prepared.joblib containing X_test and col_names
+    out_dir : str, default='reports'
+        Output directory for SHAP plots
+    """
     model = joblib.load(model_path)
     data = joblib.load(prepared_path)
     X_test = data['X_test']
+    
+    # Retrieve column names from prepared data (required for SHAP feature names)
+    col_names = data.get('col_names', None)
+    if col_names is None:
+        raise ValueError("col_names not found in prepared data. Ensure preprocessing includes col_names.")
 
-    # Load column names if available in prepared joblib else fallback
-    if 'col_names' in data:
-        col_names = data['col_names']
-    else:
-        with open('data/col_names.pkl', 'rb') as f:
-            col_names = pickle.load(f)
-
-    # SHAP TreeExplainer
+    # Create SHAP TreeExplainer
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(X_test)
-    # For classifiers, shap_values may be a list (class probabilities); select the positive class. For regressors, it's a numpy array.
+    
+    # Handle classifier (list of SHAP values per class) vs regressor (single array)
     if isinstance(shap_values, list):
-        # choose index 1 or last.
-        shap_vals = shap_values[1]
+        shap_vals = shap_values[1]  # Binary classification: use positive class
     else:
         shap_vals = shap_values
 
     # Summary plot
     shap.summary_plot(shap_vals, features=X_test, feature_names=col_names, show=False)
-    plt.title('SHAP summary')
-    plt.savefig(f"{out_dir}/shap_summary.png")
+    plt.title('SHAP Feature Importance Summary')
+    plt.tight_layout()
+    plt.savefig(f"{out_dir}/shap_summary.png", dpi=300)
     plt.close()
 
-    # Force plot example (single observation)
-    idx = 0
-    try:
-        expected = explainer.expected_value
-        if isinstance(expected, (list, tuple, np.ndarray)):
-            expected_val = expected[1] if len(expected) > 1 else expected[0]
-        else:
-            expected_val = expected
-    except Exception:
-        expected_val = None
+    # Force plot for first sample
+    expected_value = explainer.expected_value
+    if isinstance(expected_value, (list, tuple)):
+        expected_val = expected_value[1] if len(expected_value) > 1 else expected_value[0]
+    else:
+        expected_val = expected_value
 
-    if expected_val is not None and isinstance(shap_vals, np.ndarray):
-        # Try force_plot (matplotlib version)
-        shap.force_plot(expected_val, shap_vals[idx, :], X_test[idx], feature_names=col_names, matplotlib=True, show=False)
-    # Make sure we capture the force plot as an image
-    plt.savefig(f"{out_dir}/shap_force_sample0.png")
+    shap.force_plot(expected_val, shap_vals[0, :], X_test.iloc[0, :] if hasattr(X_test, 'iloc') else X_test[0], 
+                    feature_names=col_names, matplotlib=True, show=False)
+    plt.tight_layout()
+    plt.savefig(f"{out_dir}/shap_force_sample0.png", dpi=300)
     plt.close()
-
-    print('Saved SHAP plots')
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--model', type=str, default='models/rf_turnover.joblib')
-    parser.add_argument('--prepared', type=str, default='data/prepared.joblib')
-    parser.add_argument('--out-dir', type=str, default='reports')
-    parser.add_argument('--task', type=str, default='classification', choices=['classification','ts'])
+    parser = argparse.ArgumentParser(
+        description='Generate SHAP explanations for a trained model.'
+    )
+    parser.add_argument('--model', type=str, default='models/rf_turnover.joblib',
+                        help='Path to trained model')
+    parser.add_argument('--prepared', type=str, default='data/prepared.joblib',
+                        help='Path to prepared.joblib file')
+    parser.add_argument('--out-dir', type=str, default='reports',
+                        help='Output directory for SHAP plots')
     args = parser.parse_args()
-    explain(args.model, args.prepared, args.out_dir, task=args.task)
+    explain(args.model, args.prepared, args.out_dir)

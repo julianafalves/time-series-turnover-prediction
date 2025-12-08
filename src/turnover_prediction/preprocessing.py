@@ -3,23 +3,43 @@ Preprocessing utilities for the turnover dataset.
 Implements Global Forecasting Model (GFM) logic with group-aware feature engineering.
 """
 import argparse
-import pandas as pd
-import numpy as np
-import pickle
 import os
 import joblib
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
-def feature_engineering_ts(df: pd.DataFrame, date_col: str, target_col: str, group_col: str, n_lags: int) -> pd.DataFrame:
+def feature_engineering_ts(df: pd.DataFrame, date_col: str, target_col: str, 
+                           group_col: str, n_lags: int) -> pd.DataFrame:
     """
-    Performs time-series feature engineering respecting groups (areas).
+    Time-series feature engineering respecting groups (areas).
+    
+    Creates lag features, rolling statistics, and temporal features while
+    maintaining group integrity to prevent data leakage across areas.
+    
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        Input dataframe with time-series turnover data
+    date_col : str
+        Column name for date/time variable
+    target_col : str
+        Column name for target variable (turnover rate)
+    group_col : str
+        Column name for grouping variable (area identifier)
+    n_lags : int
+        Number of lag features to create
+    
+    Returns:
+    --------
+    pd.DataFrame
+        Dataframe with engineered features, cleaned and sorted
     """
     df = df.copy()
     
-    # 1. Date Features
+    # 1. Temporal Features
     df[date_col] = pd.to_datetime(df[date_col])
     df = df.sort_values(by=[group_col, date_col])
     
@@ -27,14 +47,12 @@ def feature_engineering_ts(df: pd.DataFrame, date_col: str, target_col: str, gro
     df['quarter'] = df[date_col].dt.quarter
     df['is_december'] = (df[date_col].dt.month == 12).astype(int)
     
-    # 2. Identify Exogenous Columns for Lagging
-    # Mapping based on provided CSV structure
+    # 2. Exogenous Features (Admissions, Headcount)
     col_map = {
         'TO_ADMISSOES_ADMISSOES-MES-ATUAL': 'admissions',
         'TO_HEADCOUNT_HEADCOUNT-MES-ATUAL': 'headcount'
     }
     
-    # Rename exogenous for easier handling if they exist
     exog_cols = []
     for orig, new in col_map.items():
         if orig in df.columns:
@@ -129,9 +147,19 @@ def preprocess_data(df, mode='tabular', n_lags=12, date_col='MES_REF', target_co
         
         # 4. Scaling
         # Identify categorical (our encoded group) and numerical
-        cat_feats = [f'{group_col}_encoded', 'is_december'] # Binary/Cat
-        num_feats = [c for c in X_train.columns if c not in cat_feats]
-        
+        # Ensure categorical features exist in the frame
+        cat_feats = [f'{group_col}_encoded', 'is_december']
+        cat_feats = [c for c in cat_feats if c in X_train.columns]
+
+        # Select numeric features only to avoid attempting to scale strings (emails/ids)
+        numeric_cols = X_train.select_dtypes(include=[np.number]).columns.tolist()
+        # Exclude categorical features from numeric list if they are numeric-encoded
+        num_feats = [c for c in numeric_cols if c not in cat_feats]
+
+        # If there are no numeric features (unlikely), raise a clear error
+        if len(num_feats) == 0:
+            raise ValueError('No numeric features found for scaling. Check input dataframe and feature engineering output.')
+
         preprocessor = ColumnTransformer([
             ('num', StandardScaler(), num_feats),
             ('passthrough', 'passthrough', cat_feats)

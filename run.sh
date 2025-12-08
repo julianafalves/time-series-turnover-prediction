@@ -22,6 +22,7 @@ echo "Installing project in editable mode..."
 "$VENV_PYTHON" -m pip install -e . > /dev/null
 
 # --- 2. Create Output Directories ---
+echo "--- 2. Creating Output Directories ---"
 mkdir -p models reports/benchmark reports/eda data
 
 # --- 3. Pipeline Execution ---

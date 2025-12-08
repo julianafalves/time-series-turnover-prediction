@@ -49,7 +49,7 @@ def run_tuning(input_file, out_dir, n_splits=5, n_iter=20):
 
     # Preprocessing (mode='ts' to generate lag features)
     # Note: preprocess_data returns train/test split; we use the training portion for CV.
-    X, _, y, _, _, col_names, _ = preprocess_data(
+    X, _, y, _, _, col_names, _, _, _ = preprocess_data(
         df, mode='ts', n_lags=12,
         date_col=date_col, target_col=target_col, group_col=group_col
     )
